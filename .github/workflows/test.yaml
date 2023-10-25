@@ -1,0 +1,57 @@
+---
+###############
+## Run tests ##
+###############
+
+#
+# Documentation:
+# https://help.github.com/en/articles/workflow-syntax-for-github-actions
+#
+
+name: Test
+on:
+  pull_request:
+  push:
+    branches: [ main ]
+
+##########################
+# Prevent duplicate jobs #
+##########################
+concurrency:
+  group: ${{ github.repository }}
+  cancel-in-progress: false
+
+permissions:
+  id-token: write
+  contents: read
+
+###############
+# Run the job #
+###############
+jobs:
+  terraform-test:
+    name: Terraform Test
+    runs-on: ubuntu-latest
+    steps:
+      ############################
+      # Checkout the source code #
+      ############################
+      - name: Checkout
+        uses: actions/checkout@v3
+
+      #############################
+      # Configure AWS credentials #
+      #############################
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v2
+        with:
+          role-to-assume: arn:aws:iam::${{ vars.AWS_TESTING_ACCOUNT_ID }}:role/${{ vars.AWS_TESTING_ROLE }}
+          aws-region: ${{ vars.AWS_TESTING_REGION }}
+          mask-aws-account-id: false
+
+      #############
+      # Run tests #
+      #############
+      - name: Run Tests
+        timeout-minutes: 30
+        run: terraform init && terraform test
